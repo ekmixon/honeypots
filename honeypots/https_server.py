@@ -80,6 +80,8 @@ class QHTTPSServer():
     def https_server_main(self):
         _q_s = self
 
+
+
         class MainResource(Resource):
 
             isLeaf = True
@@ -144,10 +146,7 @@ class QHTTPSServer():
                 server = _q_s.mocking
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def render(self, request):
 
@@ -155,13 +154,10 @@ class QHTTPSServer():
 
                 try:
                     def check_bytes(string):
-                        if isinstance(string, bytes):
-                            return string.decode()
-                        else:
-                            return str(string)
+                        return string.decode() if isinstance(string, bytes) else str(string)
 
                     for item, value in dict(request.requestHeaders.getAllRawHeaders()).items():
-                        headers.update({check_bytes(item): ','.join(map(check_bytes, value))})
+                        headers[check_bytes(item)] = ','.join(map(check_bytes, value))
                 except BaseException:
                     pass
 
@@ -173,10 +169,13 @@ class QHTTPSServer():
 
                 if request.method == b"GET":
                     _q_s.logs.info(["servers", {'server': 'https_server', 'action': 'get', 'ip': request.getClientIP()}])
-                    if request.uri == b"/login.html":
-                        if _q_s.username != '' and _q_s.password != '':
-                            request.responseHeaders.addRawHeader("Content-Type", "text/html; charset=utf-8")
-                            return self.login_file
+                    if (
+                        request.uri == b"/login.html"
+                        and _q_s.username != ''
+                        and _q_s.password != ''
+                    ):
+                        request.responseHeaders.addRawHeader("Content-Type", "text/html; charset=utf-8")
+                        return self.login_file
 
                     request.responseHeaders.addRawHeader("Content-Type", "text/html; charset=utf-8")
                     return self.home_file
@@ -184,22 +183,26 @@ class QHTTPSServer():
                 elif request.method == b"POST":
                     self.headers = request.getAllHeaders()
                     _q_s.logs.info(["servers", {'server': 'https_server', 'action': 'post', 'ip': request.getClientIP()}])
-                    if request.uri == b"/login.html" or b'/':
-                        if _q_s.username != '' and _q_s.password != '':
-                            form = FieldStorage(fp=request.content, headers=self.headers, environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': self.headers[b'content-type'], })
-                            if 'username' in form and 'password' in form:
-                                form['username'].value = self.check_bytes(form['username'].value)
-                                form['password'].value = self.check_bytes(form['password'].value)
-                                if form['username'].value == _q_s.username and form['password'].value == _q_s.password:
-                                    _q_s.logs.info(["servers", {'server': 'https_server', 'action': 'login', 'status': 'success', 'ip': request.getClientIP(), 'username': _q_s.username, 'password': _q_s.password}])
-                                else:
-                                    _q_s.logs.info(["servers", {'server': 'https_server', 'action': 'login', 'status': 'failed', 'ip': request.getClientIP(), 'username': form['username'].value, 'password':form['password'].value}])
+                    if (
+                        (request.uri == b"/login.html" or b'/')
+                        and _q_s.username != ''
+                        and _q_s.password != ''
+                    ):
+                        form = FieldStorage(fp=request.content, headers=self.headers, environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': self.headers[b'content-type'], })
+                        if 'username' in form and 'password' in form:
+                            form['username'].value = self.check_bytes(form['username'].value)
+                            form['password'].value = self.check_bytes(form['password'].value)
+                            if form['username'].value == _q_s.username and form['password'].value == _q_s.password:
+                                _q_s.logs.info(["servers", {'server': 'https_server', 'action': 'login', 'status': 'success', 'ip': request.getClientIP(), 'username': _q_s.username, 'password': _q_s.password}])
+                            else:
+                                _q_s.logs.info(["servers", {'server': 'https_server', 'action': 'login', 'status': 'failed', 'ip': request.getClientIP(), 'username': form['username'].value, 'password':form['password'].value}])
 
                     request.responseHeaders.addRawHeader("Content-Type", "text/html; charset=utf-8")
                     return self.home_file
                 else:
                     request.responseHeaders.addRawHeader("Content-Type", "text/html; charset=utf-8")
                     return self.home_file
+
 
         self.CreateCert("localhost", self.key, self.cert)
         ssl_context = ssl.DefaultOpenSSLContextFactory(self.key, self.cert)
@@ -235,18 +238,24 @@ class QHTTPSServer():
             _port = port or self.port
             _username = username or self.username
             _password = password or self.password
-            get('https://{}:{}'.format(_ip, _port), verify=False)
-            post('https://{}:{}'.format(_ip, _port), data={'username': (None, _username), 'password': (None, _password)}, verify=False)
+            get(f'https://{_ip}:{_port}', verify=False)
+            post(
+                f'https://{_ip}:{_port}',
+                data={
+                    'username': (None, _username),
+                    'password': (None, _password),
+                },
+                verify=False,
+            )
+
         except BaseException:
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('https_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('https_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('https_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('https_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

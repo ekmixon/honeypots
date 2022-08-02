@@ -49,20 +49,19 @@ class QPostgresServer():
     def postgres_server_main(self):
         _q_s = self
 
+
+
         class CustomPostgresProtocol(Protocol):
 
             _state = None
             _variables = {}
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def read_data_custom(self, data):
                 _data = data.decode('utf-8')
-                length = unpack("!I", data[0:4])
+                length = unpack("!I", data[:4])
                 encoded_list = (_data[8:-1].split('\x00'))
                 self._variables = dict(zip(*([iter(encoded_list)] * 2)))
 
@@ -99,6 +98,7 @@ class QPostgresServer():
             def connectionLost(self, reason):
                 self._state = 1
                 self._variables = {}
+
 
         factory = Factory()
         factory.protocol = CustomPostgresProtocol
@@ -138,12 +138,10 @@ class QPostgresServer():
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('postgres_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('postgres_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('postgres_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('postgres_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

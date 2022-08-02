@@ -47,16 +47,15 @@ class QTelnetServer():
     def telent_server_main(self):
         _q_s = self
 
+
+
         class CustomTelnetProtocol(TelnetProtocol):
             _state = None
             _user = None
             _pass = None
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def connectionMade(self):
                 self._state = None
@@ -88,6 +87,7 @@ class QTelnetServer():
                 self._state = None
                 self._user = None
                 self._pass = None
+
 
         factory = Factory()
         factory.protocol = lambda: TelnetTransport(CustomTelnetProtocol)
@@ -131,15 +131,12 @@ class QTelnetServer():
             t.write(_password + b"\n")
         except Exception as e:
             print(e)
-            pass
 
     def close_port(self):
-        ret = close_port_wrapper('telnet_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('telnet_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('telnet_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('telnet_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

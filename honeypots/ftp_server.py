@@ -49,13 +49,12 @@ class QFTPServer():
     def ftp_server_main(self):
         _q_s = self
 
+
+
         class CustomFTPProtocol(FTP):
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def ftp_PASS(self, password):
                 self._user = self.check_bytes(self._user)
@@ -66,6 +65,7 @@ class QFTPServer():
                 else:
                     _q_s.logs.info(['servers', {'server': 'ftp_server', 'action': 'login', 'status': 'failed', 'ip': self.transport.getPeer().host, 'port': self.transport.getPeer().port, 'username': self._user, 'password': password}])
                 return AUTH_FAILURE
+
 
         class CustomFTPFactory(FTPFactory):
             protocol = CustomFTPProtocol
@@ -104,12 +104,10 @@ class QFTPServer():
             self.ftp_server_main()
 
     def close_port(self):
-        ret = close_port_wrapper('ftp_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('ftp_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('ftp_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('ftp_server', self.uuid, self.process)
 
     def test_server(self, ip=None, port=None, username=None, password=None):
         try:

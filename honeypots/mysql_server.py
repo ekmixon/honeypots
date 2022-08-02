@@ -59,16 +59,24 @@ class QMysqlServer():
     def greeting(self):
         base = ['\x0a', '5.7.00' + '\0', '\x36\x00\x00\x00', '12345678' + '\0', '\xff\xf7', '\x21', '\x02\x00', '\x0f\x81', '\x15', '\0' * 10, '123456789012' + '\0', 'mysql_native_password' + '\0']
         payload_len = list(pack('<I', len(''.join(base))))
-        #payload_len[3] = '\x00'
-        string_ = chr(payload_len[0]) + chr(payload_len[1]) + chr(payload_len[2]) + '\x00' + ''.join(base)
-        return string_
+        return (
+            chr(payload_len[0])
+            + chr(payload_len[1])
+            + chr(payload_len[2])
+            + '\x00'
+            + ''.join(base)
+        )
 
     def too_many(self):
         base = ['\xff', '\x10\x04', '#08004', 'Too many connections']
         payload_len = list(pack('<I', len(''.join(base))))
-        #payload_len[3] = '\x02'
-        string_ = chr(payload_len[0]) + chr(payload_len[1]) + chr(payload_len[2]) + '\x02' + ''.join(base)
-        return string_
+        return (
+            chr(payload_len[0])
+            + chr(payload_len[1])
+            + chr(payload_len[2])
+            + '\x02'
+            + ''.join(base)
+        )
 
     def parse_data(self, data):
         username, password = '', ''
@@ -104,15 +112,14 @@ class QMysqlServer():
     def mysql_server_main(self):
         _q_s = self
 
+
+
         class CustomMysqlProtocol(Protocol):
 
             _state = None
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def connectionMade(self):
                 self._state = 1
@@ -140,6 +147,7 @@ class QMysqlServer():
 
             def connectionLost(self, reason):
                 self._state = None
+
 
         factory = Factory()
         factory.protocol = CustomMysqlProtocol
@@ -180,12 +188,10 @@ class QMysqlServer():
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('mysql_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('mysql_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('mysql_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('mysql_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

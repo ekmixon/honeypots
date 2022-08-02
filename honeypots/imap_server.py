@@ -48,23 +48,24 @@ class QIMAPServer():
 
         _q_s = self
 
+
+
         class CustomIMAP4Server(IMAP4Server):
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def connectionMade(self):
                 _q_s.logs.info(["servers", {'server': 'imap_server', 'action': 'connection', 'ip': self.transport.getPeer().host, 'port': self.transport.getPeer().port}])
 
-                if isinstance(_q_s.mocking, bool):
-                    if _q_s.mocking == True:
-                        self.sendPositiveResponse(message=choice(_q_s.random_servers))
-                elif isinstance(_q_s.mocking, str):
+                if (
+                    isinstance(_q_s.mocking, bool)
+                    and _q_s.mocking == True
+                    or not isinstance(_q_s.mocking, bool)
+                    and isinstance(_q_s.mocking, str)
+                ):
                     self.sendPositiveResponse(message=choice(_q_s.random_servers))
-                else:
+                elif not isinstance(_q_s.mocking, bool):
                     self.sendPositiveResponse(message=b'Welcome')
 
             def authenticateLogin(self, user, passwd):
@@ -85,6 +86,7 @@ class QIMAPServer():
                         IMAP4Server.lineReceived(self, line)
                 except BaseException:
                     pass
+
 
         class CustomIMAPFactory(Factory):
             protocol = CustomIMAP4Server
@@ -134,12 +136,10 @@ class QIMAPServer():
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('imap_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('imap_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('imap_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('imap_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

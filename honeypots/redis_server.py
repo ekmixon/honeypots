@@ -48,13 +48,12 @@ class QRedisServer():
     def redis_server_main(self):
         _q_s = self
 
+
+
         class CustomRedisProtocol(Protocol):
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def get_command(self, data):
                 try:
@@ -62,7 +61,9 @@ class QRedisServer():
                     if _data[0][0] == "*":
                         _count = int(_data[0][1]) - 1
                         _data.pop(0)
-                        if _data[0::2][0][0] == "$" and len(_data[1::2][0]) == int(_data[0::2][0][1]):
+                        if _data[::2][0][0] == "$" and len(_data[1::2][0]) == int(
+                            _data[::2][0][1]
+                        ):
                             return _count, _data[1::2][0]
                 except Exception as e:
                     print(e)
@@ -74,16 +75,22 @@ class QRedisServer():
                 user, password = "", ""
                 if c == 2:
                     _ = 0
-                    if _data[0::2][_][0] == "$" and len(_data[1::2][_]) == int(_data[0::2][_][1]):
+                    if _data[::2][_][0] == "$" and len(_data[1::2][_]) == int(
+                        _data[::2][_][1]
+                    ):
                         user = (_data[1::2][_])
                     _ = 1
-                    if _data[0::2][_][0] == "$" and len(_data[1::2][_]) == int(_data[0::2][_][1]):
+                    if _data[::2][_][0] == "$" and len(_data[1::2][_]) == int(
+                        _data[::2][_][1]
+                    ):
                         password = (_data[1::2][_])
                 if c == 1:
                     _ = 0
-                    if _data[0::2][_][0] == "$" and len(_data[1::2][_]) == int(_data[0::2][_][1]):
+                    if _data[::2][_][0] == "$" and len(_data[1::2][_]) == int(
+                        _data[::2][_][1]
+                    ):
                         password = (_data[1::2][_])
-                if c == 2 or c == 1:
+                if c in [2, 1]:
                     user = self.check_bytes(user)
                     password = self.check_bytes(password)
                     if user == _q_s.username and password == _q_s.password:
@@ -104,6 +111,7 @@ class QRedisServer():
                 else:
                     self.transport.write(b"-ERR unknown command '{}'\r\n".format(command))
                 self.transport.loseConnection()
+
 
         factory = Factory()
         factory.protocol = CustomRedisProtocol
@@ -138,19 +146,17 @@ class QRedisServer():
             _port = port or self.port
             _username = username or self.username
             _password = password or self.password
-            r = StrictRedis.from_url('redis://{}:{}@{}:{}/1'.format(_username, _password, _ip, _port))
-            for key in r.scan_iter("user:*"):
+            r = StrictRedis.from_url(f'redis://{_username}:{_password}@{_ip}:{_port}/1')
+            for _ in r.scan_iter("user:*"):
                 pass
         except BaseException:
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('redis_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('redis_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('redis_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('redis_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

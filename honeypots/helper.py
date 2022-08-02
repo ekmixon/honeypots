@@ -56,9 +56,12 @@ def get_running_servers():
         honeypots = ['QDNSServer', 'QFTPServer', 'QHTTPProxyServer', 'QHTTPServer', 'QHTTPSServer', 'QIMAPServer', 'QMysqlServer', 'QPOP3Server', 'QPostgresServer', 'QRedisServer', 'QSMBServer', 'QSMTPServer', 'QSOCKS5Server', 'QSSHServer', 'QTelnetServer', 'QVNCServer']
         for process in process_iter():
             cmdline = ' '.join(process.cmdline())
-            for honeypot in honeypots:
-                if '--custom' in cmdline and honeypot in cmdline:
-                    temp_list.append(cmdline.split(" --custom ")[1])
+            temp_list.extend(
+                cmdline.split(" --custom ")[1]
+                for honeypot in honeypots
+                if '--custom' in cmdline and honeypot in cmdline
+            )
+
     except BaseException:
         pass
     return temp_list
@@ -165,18 +168,23 @@ def close_port_wrapper(server_name, ip, port, logs):
                 pass
     if sock.connect_ex((ip, port)) != 0:
         return True
-    else:
-        logs.error(['errors', {'server': server_name, 'error': 'port_open', 'type': 'Port {} still open..'.format(ip)}])
-        return False
+    logs.error(
+        [
+            'errors',
+            {
+                'server': server_name,
+                'error': 'port_open',
+                'type': f'Port {ip} still open..',
+            },
+        ]
+    )
+
+    return False
 
 
 class ComplexEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, bytes):
-            return obj.decode(errors='replace')
-        else:
-            return repr(obj)
-        return JSONEncoder.default(self, obj)
+        return obj.decode(errors='replace') if isinstance(obj, bytes) else repr(obj)
 
 
 class ComplexEncoder_db(JSONEncoder):
@@ -186,7 +194,7 @@ class ComplexEncoder_db(JSONEncoder):
 
 def serialize_object(_dict):
     if isinstance(_dict, Mapping):
-        return dict((k, serialize_object(v)) for k, v in _dict.items())
+        return {k: serialize_object(v) for k, v in _dict.items()}
     else:
         return repr(_dict)
 
@@ -203,19 +211,17 @@ class CustomHandler(Handler):
 
     def emit(self, record):
         try:
-            if 'db' in self.logs:
-                if self.db:
-                    self.db.insert_into_data_safe(record.msg[0], dumps(serialize_object(record.msg[1]), cls=ComplexEncoder))
+            if 'db' in self.logs and self.db:
+                self.db.insert_into_data_safe(record.msg[0], dumps(serialize_object(record.msg[1]), cls=ComplexEncoder))
             if 'terminal' in self.logs:
                 time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                if record.msg[0] == "servers":
-                    if "server" in record.msg[1]:
-                        temp = record.msg[1]
-                        action = record.msg[1]['action']
-                        server = temp['server'].replace('server', '').replace('_', '')
-                        del temp['server']
-                        del temp['action']
-                        stdout.write("[{}] [{}] [{}] -> {}\n".format(time_now, server, action, dumps(temp, sort_keys=True, cls=ComplexEncoder)))
+                if record.msg[0] == "servers" and "server" in record.msg[1]:
+                    temp = record.msg[1]
+                    action = record.msg[1]['action']
+                    server = temp['server'].replace('server', '').replace('_', '')
+                    del temp['server']
+                    del temp['action']
+                    stdout.write("[{}] [{}] [{}] -> {}\n".format(time_now, server, action, dumps(temp, sort_keys=True, cls=ComplexEncoder)))
             if 'syslog' in self.logs:
                 stdout.write(dumps(record.msg, sort_keys=True, cls=ComplexEncoder) + "\n")
         except Exception as e:
@@ -263,7 +269,7 @@ class postgres_class():
         test = True
         while test:
             try:
-                print("{} - Waiting on postgres connection".format(self.uuid))
+                print(f"{self.uuid} - Waiting on postgres connection")
                 stdout.flush()
                 conn = connect(host=self.host, port=self.port, user=self.username, password=self.password, connect_timeout=1)
                 conn.close()
@@ -271,45 +277,51 @@ class postgres_class():
             except Exception as e:
                 pass
             sleep(1)
-        print("{} - postgres connection is good".format(self.uuid))
+        print(f"{self.uuid} - postgres connection is good")
 
     def addattr(self, x, val):
         self.__dict__[x] = val
 
     def check_db_if_exists(self):
         self.cur.execute("SELECT exists(SELECT 1 from pg_catalog.pg_database where datname = %s)", (self.db,))
-        if self.cur.fetchall()[0][0]:
-            return True
-        else:
-            return False
+        return bool(self.cur.fetchall()[0][0])
 
     def drop_db(self):
         try:
             if self.check_db_if_exists():
                 self.cur.execute(sql.SQL("drop DATABASE IF EXISTS {}").format(sql.Identifier(self.db)))
                 sleep(2)
-                self.cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(self.db)))
-            else:
-                self.cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(self.db)))
+            self.cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(self.db)))
         except BaseException:
             pass
 
     def drop_tables(self,):
         for x in self.mapped_tables:
-            self.cur.execute(sql.SQL("drop TABLE IF EXISTS {}").format(sql.Identifier(x + "_table")))
+            self.cur.execute(
+                sql.SQL("drop TABLE IF EXISTS {}").format(
+                    sql.Identifier(f"{x}_table")
+                )
+            )
 
     def create_tables(self):
         for x in self.mapped_tables:
-            self.cur.execute(sql.SQL("CREATE TABLE IF NOT EXISTS {} (id SERIAL NOT NULL,date timestamp with time zone DEFAULT now(),data json)").format(sql.Identifier(x + "_table")))
+            self.cur.execute(
+                sql.SQL(
+                    "CREATE TABLE IF NOT EXISTS {} (id SERIAL NOT NULL,date timestamp with time zone DEFAULT now(),data json)"
+                ).format(sql.Identifier(f"{x}_table"))
+            )
 
     def insert_into_data_safe(self, table, obj):
         try:
             # stdout.write(str(table))
             self.cur.execute(
-                sql.SQL("INSERT INTO {} (id,date, data) VALUES (DEFAULT ,now(), %s)")
-                .format(sql.Identifier(table + "_table")),
-                [obj])
-            #self.cur.execute(sql.SQL("INSERT INTO errors_table (data) VALUES (%s,)"),dumps(serialize_object(obj),cls=ComplexEncoder))
+                sql.SQL(
+                    "INSERT INTO {} (id,date, data) VALUES (DEFAULT ,now(), %s)"
+                ).format(sql.Identifier(f"{table}_table")),
+                [obj],
+            )
+
+                #self.cur.execute(sql.SQL("INSERT INTO errors_table (data) VALUES (%s,)"),dumps(serialize_object(obj),cls=ComplexEncoder))
         except Exception:
             stdout.write(str(format_exc()).replace("\n", " "))
         stdout.flush()

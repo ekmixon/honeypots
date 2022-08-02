@@ -50,6 +50,8 @@ class QHTTPProxyServer():
     def http_proxy_server_main(self):
         _q_s = self
 
+
+
         class CustomProtocolParent(Protocol):
 
             def __init__(self):
@@ -65,14 +67,23 @@ class QHTTPProxyServer():
                     # return "127.0.0.1"
                     return dsnquery(host[0], 'A')[0].address
                 except Exception as e:
-                    _q_s.logs.error(["errors", {'server': 'http_proxy_server', 'error': 'resolve_domain', "type": "error -> " + repr(e)}])
+                    _q_s.logs.error(
+                        [
+                            "errors",
+                            {
+                                'server': 'http_proxy_server',
+                                'error': 'resolve_domain',
+                                "type": f"error -> {repr(e)}",
+                            },
+                        ]
+                    )
+
                 return None
 
             def dataReceived(self, data):
                 _q_s.logs.info(["servers", {'server': 'http_proxy_server', 'action': 'connection', 'ip': self.transport.getPeer().host, 'port': self.transport.getPeer().port}])
                 try:
-                    ip = self.resolve_domain(data)
-                    if ip:
+                    if ip := self.resolve_domain(data):
                         factory = ClientFactory()
                         factory.CustomProtocolParent_ = self
                         factory.protocol = CustomProtocolChild
@@ -89,6 +100,7 @@ class QHTTPProxyServer():
 
             def write(self, data):
                 self.transport.write(data)
+
 
         class CustomProtocolChild(Protocol):
             def connectionMade(self):
@@ -132,17 +144,18 @@ class QHTTPProxyServer():
             _ip = ip or self.ip
             _port = port or self.port
             _domain = domain or "http://yahoo.com"
-            get(_domain, proxies={"http": 'http://{}:{}'.format(_ip, _port)}).text.encode('ascii', 'ignore')
+            get(_domain, proxies={"http": f'http://{_ip}:{_port}'}).text.encode(
+                'ascii', 'ignore'
+            )
+
         except BaseException:
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('http_proxy_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('http_proxy_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('http_proxy_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('http_proxy_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

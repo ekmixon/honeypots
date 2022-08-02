@@ -38,11 +38,11 @@ def list_all_honeypots():
 @timeout(5)
 def server_timeout(object, name):
     try:
-        print('[x] Start testing {}'.format(name))
+        print(f'[x] Start testing {name}')
         object.test_server()
     except BaseException:
-        print('[x] Timeout {}'.format(name))
-    print('[x] Done testing {}'.format(name))
+        print(f'[x] Timeout {name}')
+    print(f'[x] Done testing {name}')
 
 
 def main_logic():
@@ -110,28 +110,27 @@ def main_logic():
                 print('[!] Unable to load or parse config.json file')
                 exit()
         if sniffer_filter and interface:
-            if not ARGV.test:
-                if ARGV.sniffer:
-                    current_interfaces = "unknown"
+            if not ARGV.test and ARGV.sniffer:
+                current_interfaces = "unknown"
+                try:
+                    current_interfaces = " ".join(interfaces())
+                    if interface in current_interfaces:
+                        print('[x] Your IP: {}'.format(ifaddresses(interface)[AF_INET][0]['addr']))
+                        print('[x] Your MAC: {}'.format(ifaddresses(interface)[AF_LINK][0]['addr']))
+                    else:
+                        raise Exception()
+                except BaseException:
+                    print('[!] Unable to detect IP or MAC for [{}] interface, current interfaces are [{}]'.format(interface, current_interfaces))
+                    exit()
+                if ARGV.iptables:
                     try:
-                        current_interfaces = " ".join(interfaces())
-                        if interface in current_interfaces:
-                            print('[x] Your IP: {}'.format(ifaddresses(interface)[AF_INET][0]['addr']))
-                            print('[x] Your MAC: {}'.format(ifaddresses(interface)[AF_LINK][0]['addr']))
-                        else:
-                            raise Exception()
+                        print('[x] Fixing iptables')
+                        Popen('iptables -A OUTPUT -p tcp -m tcp --tcp-flags RST RST -j DROP', shell=True)
                     except BaseException:
-                        print('[!] Unable to detect IP or MAC for [{}] interface, current interfaces are [{}]'.format(interface, current_interfaces))
-                        exit()
-                    if ARGV.iptables:
-                        try:
-                            print('[x] Fixing iptables')
-                            Popen('iptables -A OUTPUT -p tcp -m tcp --tcp-flags RST RST -j DROP', shell=True)
-                        except BaseException:
-                            pass
-                    print('[x] Wait for 10 seconds..')
-                    stdout.flush()
-                    sleep(2)
+                        pass
+                print('[x] Wait for 10 seconds..')
+                stdout.flush()
+                sleep(2)
 
             if ARGV.config != "":
                 print('[x] Config.json file overrides --ip, --port, --username and --password')

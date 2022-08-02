@@ -61,6 +61,8 @@ class QSMBServer():
     def smb_server_main(self):
         _q_s = self
 
+
+
         class Logger(object):
             def write(self, message):
                 #sys.stdout.write(str(">>>>" + message))
@@ -73,7 +75,18 @@ class QSMBServer():
                         if len(parsed) > 2:
                             _q_s.logs.info(["servers", {'server': 'smb_server', 'action': 'login', 'workstation': parsed[0], 'test':parsed[1]}])
                 except Exception as e:
-                    _q_s.logs.error(["errors", {'server': 'smb_server', 'error': 'write', "type": "error -> " + repr(e)}])
+                    _q_s.logs.error(
+                        [
+                            "errors",
+                            {
+                                'server': 'smb_server',
+                                'error': 'write',
+                                "type": f"error -> {repr(e)}",
+                            },
+                        ]
+                    )
+
+
 
         handler = StreamHandler(Logger())
         getLogger("impacket").addHandler(handler)
@@ -121,15 +134,22 @@ class QSMBServer():
             smb_client = SMBConnection(_ip, _ip, sess_port=_port)
             smb_client.login(_username, _password)
         except Exception as e:
-            self.logs.error(["errors", {'server': 'smb_server', 'error': 'write', "type": "error -> " + repr(e)}])
+            self.logs.error(
+                [
+                    "errors",
+                    {
+                        'server': 'smb_server',
+                        'error': 'write',
+                        "type": f"error -> {repr(e)}",
+                    },
+                ]
+            )
 
     def close_port(self):
-        ret = close_port_wrapper('smb_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('smb_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('smb_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('smb_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

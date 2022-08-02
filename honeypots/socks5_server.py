@@ -44,32 +44,31 @@ class QSOCKS5Server():
     def socks5_server_main(self):
         _q_s = self
 
+
+
         class CustomStreamRequestHandler(StreamRequestHandler):
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def handle(self):
                 _q_s.logs.info(["servers", {'server': 'socks5_server', 'action': 'connection', 'ip': self.client_address[0], 'port':self.client_address[1]}])
                 v, m = unpack("!BB", self.connection.recv(2))
-                if v == 5:
-                    if 2 in unpack("!" + "B" * m, self.connection.recv(m)):
-                        self.connection.sendall(b'\x05\x02')
-                        if 1 in unpack("B", self.connection.recv(1)):
-                            _len = ord(self.connection.recv(1))
-                            username = self.connection.recv(_len)
-                            _len = ord(self.connection.recv(1))
-                            password = self.connection.recv(_len)
-                            username = self.check_bytes(username)
-                            password = self.check_bytes(password)
-                            if username == _q_s.username and password == _q_s.password:
-                                _q_s.logs.info(["servers", {'server': 'socks5_server', 'action': 'login', 'status': 'success', 'ip': self.client_address[0], 'port':self.client_address[1], 'username':_q_s.username, 'password':_q_s.password}])
-                            else:
-                                _q_s.logs.info(["servers", {'server': 'socks5_server', 'action': 'login', 'status': 'failed', 'ip': self.client_address[0], 'port':self.client_address[1], 'username':username.decode(), 'password':password.decode()}])
+                if v == 5 and 2 in unpack("!" + "B" * m, self.connection.recv(m)):
+                    self.connection.sendall(b'\x05\x02')
+                    if 1 in unpack("B", self.connection.recv(1)):
+                        _len = ord(self.connection.recv(1))
+                        username = self.connection.recv(_len)
+                        _len = ord(self.connection.recv(1))
+                        password = self.connection.recv(_len)
+                        username = self.check_bytes(username)
+                        password = self.check_bytes(password)
+                        if username == _q_s.username and password == _q_s.password:
+                            _q_s.logs.info(["servers", {'server': 'socks5_server', 'action': 'login', 'status': 'success', 'ip': self.client_address[0], 'port':self.client_address[1], 'username':_q_s.username, 'password':_q_s.password}])
+                        else:
+                            _q_s.logs.info(["servers", {'server': 'socks5_server', 'action': 'login', 'status': 'failed', 'ip': self.client_address[0], 'port':self.client_address[1], 'username':username.decode(), 'password':password.decode()}])
                 self.server.close_request(self.request)
+
 
         class ThreadingTCPServer(ThreadingMixIn, TCPServer):
             pass
@@ -114,17 +113,22 @@ class QSOCKS5Server():
             _port = port or self.port
             _username = username or self.username
             _password = password or self.password
-            get('https://yahoo.com', proxies=dict(http='socks5://{}:{}@{}:{}'.format(_username, _password, _ip, _port), https='socks5://{}:{}@{}:{}'.format(_username, _password, _ip, _port)))
+            get(
+                'https://yahoo.com',
+                proxies=dict(
+                    http=f'socks5://{_username}:{_password}@{_ip}:{_port}',
+                    https=f'socks5://{_username}:{_password}@{_ip}:{_port}',
+                ),
+            )
+
         except BaseException:
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('socks5_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('socks5_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('socks5_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('socks5_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

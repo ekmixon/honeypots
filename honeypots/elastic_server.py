@@ -80,6 +80,8 @@ class QElasticServer():
     def elastic_server_main(self):
         _q_s = self
 
+
+
         class CustomElasticServerHandler(SimpleHTTPRequestHandler):
 
             server_version = ""
@@ -89,13 +91,10 @@ class QElasticServer():
                 headers = {}
                 try:
                     def check_bytes(string):
-                        if isinstance(string, bytes):
-                            return string.decode()
-                        else:
-                            return str(string)
+                        return string.decode() if isinstance(string, bytes) else str(string)
 
                     for item, value in dict(self.headers).items():
-                        headers.update({check_bytes(item): check_bytes(value)})
+                        headers[check_bytes(item)] = check_bytes(value)
                 except Exception as e:
                     pass
 
@@ -145,7 +144,7 @@ class QElasticServer():
                 e_name = "045dffec8b60"
                 e_cluster_name = "R&DBackup"
                 e_host = "172.17.0.2"
-                e_transport_address = e_host + ":9300"
+                e_transport_address = f"{e_host}:9300"
                 e_build_type = "en"
                 e_os_name = "Linux"
                 e_os_pretty_name = "CentOS Linux 8"
@@ -156,7 +155,7 @@ class QElasticServer():
                     _q_s.logs.info(["servers", {'server': 'elastic_server', 'action': 'login', 'status': 'failed', 'ip': self.client_address[0], 'username': username, 'password':password}])
                     auth_paylaod = bytes(dumps({"error": {"root_cause": [{"type": "security_exception", "reason": "unable to authenticate user [{}] for REST request [/]".format(username), "header": {"WWW-Authenticate": "Basic realm=\"security\" charset=\"UTF-8\""}}], "type": "security_exception", "reason": "unable to authenticate user [{}] for REST request [/]".format(username), "header": {"WWW-Authenticate": "Basic realm=\"security\" charset=\"UTF-8\""}}, "status": 401}), 'utf-8')
                     self.wfile.write(self._set_response_gzip_auth(auth_paylaod, 401))
-                elif self.headers.get('Authorization') == 'Basic ' + str(key):
+                elif self.headers.get('Authorization') == f'Basic {str(key)}':
                     extracted = ""
                     _q_s.logs.info(["servers", {'server': 'elastic_server', 'action': 'login', 'status': 'success', 'ip': self.client_address[0], 'username': _q_s.username, 'password':_q_s.password}])
                     try:
@@ -203,8 +202,11 @@ class QElasticServer():
                 _q_s.logs.info(["servers", {'server': 'elastic_server', 'action': 'connection', 'ip': self.client_address[0]}])
                 return SimpleHTTPRequestHandler.handle_one_request(self)
 
+
+
+
         class CustomElasticServer(ThreadingHTTPServer):
-            key = b64encode(bytes('%s:%s' % ('elastic', 'changeme'), 'utf-8')).decode('ascii')
+            key = b64encode(bytes('elastic:changeme', 'utf-8')).decode('ascii')
 
             def __init__(self, address, handlerClass=CustomElasticServerHandler):
                 super().__init__(address, handlerClass)
@@ -214,6 +216,7 @@ class QElasticServer():
 
             def get_auth_key(self):
                 return self.key
+
 
         server = CustomElasticServer((self.ip, self.port))
         server.set_auth_key(self.username, self.password)
@@ -250,18 +253,21 @@ class QElasticServer():
             _port = port or self.port
             _username = username or self.username
             _password = password or self.password
-            es = Elasticsearch(['https://{}:{}'.format(_ip, _port)], http_auth=(_username, _password), verify_certs=False)
+            es = Elasticsearch(
+                [f'https://{_ip}:{_port}'],
+                http_auth=(_username, _password),
+                verify_certs=False,
+            )
+
             es.search(index="test", body={}, size=99)
         except Exception as e:
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('elastic_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('elastic_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('elastic_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('elastic_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

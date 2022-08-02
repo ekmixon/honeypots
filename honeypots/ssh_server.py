@@ -61,6 +61,8 @@ class QSSHServer():
     def ssh_server_main(self):
         _q_s = self
 
+
+
         class SSHHandle(ServerInterface):
 
             def __init__(self, ip, port):
@@ -69,10 +71,7 @@ class QSSHServer():
                 ServerInterface.__init__(self)
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def check_auth_password(self, username, password):
                 username = self.check_bytes(username)
@@ -82,16 +81,17 @@ class QSSHServer():
                 else:
                     _q_s.logs.info(["servers", {'server': 'ssh_server', 'action': 'login', 'status': 'failed', 'ip': self.ip, 'port': self.port, 'username': username, 'password': password}])
 
+
         def ConnectionHandle(client, priv):
             try:
                 t = Transport(client)
                 ip, port = client.getpeername()
                 _q_s.logs.info(["servers", {'server': 'ssh_server', 'action': 'connection', 'ip': ip, 'port': port}])
-                t.local_version = 'SSH-2.0-' + choice(self.random_servers)
+                t.local_version = f'SSH-2.0-{choice(self.random_servers)}'
                 t.add_server_key(RSAKey(file_obj=StringIO(priv)))
                 t.start_server(server=SSHHandle(ip, port))
                 chan = t.accept(1)
-                if not chan is None:
+                if chan is not None:
                     chan.close()
             except BaseException:
                 pass
@@ -144,12 +144,10 @@ class QSSHServer():
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('ssh_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('ssh_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('ssh_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('ssh_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

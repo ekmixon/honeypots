@@ -49,13 +49,12 @@ class QSMTPServer():
     def smtp_server_main(self):
         _q_s = self
 
+
+
         class CustomSMTPChannel(SMTPChannel):
 
             def check_bytes(self, string):
-                if isinstance(string, bytes):
-                    return string.decode()
-                else:
-                    return str(string)
+                return string.decode() if isinstance(string, bytes) else str(string)
 
             def smtp_EHLO(self, arg):
                 _q_s.logs.info(["servers", {'server': 'smtp_server', 'action': 'connection', 'ip': self.addr[0], 'port':self.addr[1]}])
@@ -82,12 +81,23 @@ class QSMTPServer():
                             _q_s.logs.info(["servers", {'server': 'smtp_server', 'action': 'login', 'status': 'faild', 'ip': self.addr[0], 'port':self.addr[1], 'username':username, 'password':password}])
                 except Exception as e:
                     print(e)
-                    _q_s.logs.error(["errors", {'server': 'smtp_server', 'error': 'smtp_AUTH', "type": "error -> " + repr(e)}])
+                    _q_s.logs.error(
+                        [
+                            "errors",
+                            {
+                                'server': 'smtp_server',
+                                'error': 'smtp_AUTH',
+                                "type": f"error -> {repr(e)}",
+                            },
+                        ]
+                    )
+
 
                 self.push('235 Authentication successful')
 
             def __getattr__(self, name):
                 self.smtp_QUIT(0)
+
 
         class CustomSMTPServer(SMTPServer):
             def __init__(self, localaddr, remoteaddr):
@@ -141,12 +151,10 @@ class QSMTPServer():
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('smtp_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('smtp_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('smtp_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('smtp_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

@@ -58,6 +58,8 @@ class QDNSServer():
                 res.addErrback(queryFailed)
                 return res
 
+
+
         class CustomDNSServerFactory(DNSServerFactory):
             def gotResolverResponse(self, response, protocol, message, address):
                 args = (self, response, protocol, message, address)
@@ -67,8 +69,19 @@ class QDNSServer():
                         for item in items:
                             _q_s.logs.info(['servers', {'server': 'dns_server', 'action': 'query', 'ip': address[0], 'port':address[1], 'payload':item.payload}])
                 except Exception as e:
-                    _q_s.logs.error(['errors', {'server': 'dns_server', 'error': 'gotResolverResponse', 'type': 'error -> ' + repr(e)}])
+                    _q_s.logs.error(
+                        [
+                            'errors',
+                            {
+                                'server': 'dns_server',
+                                'error': 'gotResolverResponse',
+                                'type': f'error -> {repr(e)}',
+                            },
+                        ]
+                    )
+
                 return DNSServerFactory.gotResolverResponse(*args)
+
 
         self.resolver = CustomCilentResolver(servers=self.resolver_addresses)
         self.factory = CustomDNSServerFactory(clients=[self.resolver])
@@ -110,12 +123,10 @@ class QDNSServer():
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('dns_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('dns_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('dns_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('dns_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':

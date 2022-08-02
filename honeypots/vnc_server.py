@@ -66,9 +66,7 @@ class QVNCServer():
             for word in self.words:
                 temp = word
                 word = word.strip('\n').ljust(8, '\00')[:8]
-                rev_word = []
-                for i in range(0, 8):
-                    rev_word.append(chr(int('{:08b}'.format(ord(word[i]))[::-1], 2)))
+                rev_word = [chr(int('{:08b}'.format(ord(word[i]))[::-1], 2)) for i in range(8)]
                 output = DES.new(''.join(rev_word).encode('utf-8'), DES.MODE_ECB).encrypt(c)
                 if output == r:
                     return temp
@@ -79,6 +77,8 @@ class QVNCServer():
 
     def vnc_server_main(self):
         _q_s = self
+
+
 
         class CustomVNCProtocol(Protocol):
 
@@ -99,22 +99,21 @@ class QVNCServer():
                         self._state = 3
                         self.transport.write(_q_s.challenge)
                 elif self._state == 3:
-                    _x = _q_s.decode(_q_s.challenge, data.hex())
-                    if _x:
+                    if _x := _q_s.decode(_q_s.challenge, data.hex()):
                         if _x == _q_s.password:
                             _q_s.logs.info(["servers", {'server': 'vnc_server', 'action': 'login', 'status': 'success', 'ip': self.transport.getPeer().host, 'port': self.transport.getPeer().port, 'username': 'UnKnown', 'password': _q_s.password}])
                         else:
                             _q_s.logs.info(["servers", {'server': 'vnc_server', 'action': 'login', 'status': 'failed', 'ip': self.transport.getPeer().host, 'port': self.transport.getPeer().port, 'username': 'UnKnown', 'password': _x}])
-                    else:
-                        if len(data) == 16:
-                            # we need to check the lenth check length first
-                            _q_s.logs.info(["servers", {'server': 'vnc_server', 'action': 'login', 'status': 'failed', 'ip': self.transport.getPeer().host, 'port': self.transport.getPeer().port, 'username': 'UnKnown', 'password': data.hex()}])
+                    elif len(data) == 16:
+                        # we need to check the lenth check length first
+                        _q_s.logs.info(["servers", {'server': 'vnc_server', 'action': 'login', 'status': 'failed', 'ip': self.transport.getPeer().host, 'port': self.transport.getPeer().port, 'username': 'UnKnown', 'password': data.hex()}])
                     self.transport.loseConnection()
                 else:
                     self.transport.loseConnection()
 
             def connectionLost(self, reason):
                 self._state = None
+
 
         factory = Factory()
         factory.protocol = CustomVNCProtocol
@@ -156,12 +155,10 @@ class QVNCServer():
             pass
 
     def close_port(self):
-        ret = close_port_wrapper('vnc_server', self.ip, self.port, self.logs)
-        return ret
+        return close_port_wrapper('vnc_server', self.ip, self.port, self.logs)
 
     def kill_server(self):
-        ret = kill_server_wrapper('vnc_server', self.uuid, self.process)
-        return ret
+        return kill_server_wrapper('vnc_server', self.uuid, self.process)
 
 
 if __name__ == '__main__':
